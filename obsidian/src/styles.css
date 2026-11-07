@@ -1,0 +1,77 @@
+/* Daftarcheh for Obsidian — fonts, right-to-left details and the article look. Built by tools/obsidian.py. */
+/*@@FONTS@@*/
+
+/* Daftarcheh's fonts: Inter for Latin, Vazirmatn for Persian, JetBrains Mono for code */
+body {
+  --font-text-theme: Inter, Vazirmatn, Vazir, Tahoma, "Segoe UI", sans-serif;
+  --font-monospace-theme: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+.markdown-rendered, .markdown-source-view .cm-content { line-height: 1.9; }
+
+/* each block reads from its own side; code, maths and diagrams stay left-to-right */
+.markdown-rendered [dir], .markdown-source-view .cm-line[dir] { text-align: start; }
+.markdown-rendered pre, .markdown-rendered .math-block, .markdown-rendered .mermaid,
+.markdown-source-view .HyperMD-codeblock { direction: ltr; text-align: left; }
+.markdown-rendered :not(pre) > code, .markdown-source-view .cm-inline-code { unicode-bidi: isolate; }
+.markdown-rendered bdi { unicode-bidi: isolate; }
+.markdown-rendered ol[dir="rtl"] { list-style-type: persian; }
+.markdown-rendered ul[dir="rtl"], .markdown-rendered ol[dir="rtl"] { padding-inline-start: 1.6em; padding-inline-end: 0; }
+.markdown-rendered table[dir] th, .markdown-rendered table[dir] td { text-align: start; }
+
+/* {ok: …} badges */
+.mz-tag { display: inline-block; font-size: .74em; font-weight: 700; line-height: 1.7; padding: 0 .7em; border-radius: 999px;
+  vertical-align: .12em; margin-inline: .2em; white-space: nowrap; }
+td .mz-tag { white-space: normal; }
+.mz-tag-ok { background: #e3f3e9; color: #1f7a46; }
+.mz-tag-bad { background: #fbe6e4; color: #b3261e; }
+.mz-tag-warn { background: #fbf0dc; color: #9a5b00; }
+.mz-tag-info { background: color-mix(in srgb, var(--interactive-accent) 14%, transparent); color: var(--text-accent); }
+.theme-dark .mz-tag-ok { background: #13301f; color: #6fcf97; }
+.theme-dark .mz-tag-bad { background: #3a1714; color: #f28b82; }
+.theme-dark .mz-tag-warn { background: #33270f; color: #f0b45a; }
+
+/* ```log with «!!» lines */
+.markdown-rendered pre.df-log { background: #0f1a20; color: #d6e3e8; border: 1px solid #0f1a20; border-radius: 8px; padding: 12px 14px;
+  font-family: var(--font-monospace); font-size: .8em; line-height: 1.6; overflow-x: auto; }
+.theme-dark .markdown-rendered pre.df-log { background: #11131a; border-color: #2b2e3b; }
+.markdown-rendered pre.df-log .hl-line { color: #ffd27a; }
+.hl-line { background: color-mix(in srgb, #f5c542 26%, transparent); }
+.markdown-rendered pre.df-log .hl-line { background: transparent; }
+
+/* ```svg figures: var(--accent), var(--accent-soft), var(--surface), var(--line) as in Daftarcheh */
+.svgfig { direction: ltr; margin: .9em 0 1.3em; padding: 16px; overflow-x: auto; border-radius: 10px;
+  background: color-mix(in srgb, var(--text-normal) 3%, transparent); border: 1px solid var(--background-modifier-border);
+  --accent: var(--interactive-accent); --accent-soft: color-mix(in srgb, var(--interactive-accent) 14%, transparent);
+  --surface: var(--background-primary); --line: var(--background-modifier-border); }
+.svgfig svg { display: block; margin: 0 auto; height: auto; }
+.svgfig text:not([font-family]) { font-family: "JetBrains Mono", ui-monospace, Consolas, monospace; }
+.svgfig text:not([font-size]) { font-size: 12px; }
+.svgfig text:not([fill]) { fill: var(--text-normal); }
+.svgfig text.sub:not([fill]) { fill: var(--text-muted); }
+.svgfig text.sub:not([font-size]) { font-size: 11px; }
+
+/* ---------- the article look: «cssclasses: article» ---------- */
+.markdown-preview-view.article { font-family: Vazirmatn, Vazir, Inter, Tahoma, sans-serif; font-size: 16.5px; line-height: 1.9; }
+.markdown-preview-view.article .df-eyebrow { color: var(--text-accent); font-weight: 700; font-size: .82em; letter-spacing: .02em; }
+.markdown-preview-view.article h1 { font-size: clamp(1.6em, 4vw, 2.2em); font-weight: 800; line-height: 1.35; margin: .2em 0 .45em; text-wrap: balance; }
+.markdown-preview-view.article .df-lede { font-size: 1.1em; color: var(--text-normal); margin: 0 0 1.6em; padding-bottom: 1.4em;
+  border-bottom: 1px solid var(--background-modifier-border); }
+.markdown-preview-view.article h2 { font-size: 1.42em; font-weight: 800; line-height: 1.45; margin: 2.4em 0 .6em; border-bottom: 0; text-wrap: balance; }
+.markdown-preview-view.article h3 { font-size: 1.13em; font-weight: 700; margin: 1.8em 0 .4em; text-wrap: balance; }
+.markdown-preview-view.article li { margin-bottom: .35em; }
+.markdown-preview-view.article :not(pre) > code { font-family: "JetBrains Mono", ui-monospace, Consolas, monospace; font-size: .84em;
+  background: color-mix(in srgb, var(--interactive-accent) 12%, transparent); color: inherit; padding: 1px 6px; border-radius: 4px; }
+.markdown-preview-view.article pre:not(.mermaid) { font-family: "JetBrains Mono", ui-monospace, Consolas, monospace; font-size: .8em;
+  line-height: 1.6; border-radius: 8px; }
+.markdown-preview-view.article .callout { border-radius: 6px; padding: .9em 1.1em; }
+.markdown-preview-view.article .callout[data-callout="summary"], .markdown-preview-view.article .callout[data-callout="abstract"],
+.markdown-preview-view.article .callout[data-callout="tldr"] { background: var(--background-secondary); border: 1px solid var(--background-modifier-border);
+  border-radius: 10px; padding: 1.1em 1.3em; }
+.markdown-preview-view.article .callout[data-callout="summary"] .callout-title { color: var(--text-normal); }
+.markdown-preview-view.article table { font-size: .9em; border: 1px solid var(--background-modifier-border); border-radius: 8px;
+  border-collapse: separate; border-spacing: 0; overflow: hidden; }
+.markdown-preview-view.article th, .markdown-preview-view.article td { padding: .65em .8em; border: 0; border-bottom: 1px solid var(--background-modifier-border); }
+.markdown-preview-view.article tr:last-child td { border-bottom: 0; }
+.markdown-preview-view.article th { color: var(--text-muted); font-size: .84em; }
+.markdown-preview-view.article ol[dir="rtl"] > li::marker { color: var(--text-accent); font-weight: 700; }
+.markdown-preview-view.article hr { border: 0; border-top: 1px solid var(--background-modifier-border); margin: 3.5em 0 1em; }
