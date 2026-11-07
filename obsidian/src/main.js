@@ -30,11 +30,18 @@ function ownText(el){
   return c.textContent || '';
 }
 
+/** Obsidian's own post-processor gives p, li and headings dir="auto" (the first letter decides: «timeout cron از …» would read
+    left-to-right). Whichever runs last owns «dir», so the direction also goes in data-df-dir, which styles.css makes win. */
+function setDir(el, d){
+  el.setAttribute('dir', d);
+  el.setAttribute('data-df-dir', d);
+}
+
 function setDirections(root){
   Array.prototype.forEach.call(root.querySelectorAll(BLOCKS), function(el){
     if (el.closest(KEEP_LTR)) return;
     var d = textDir(ownText(el));
-    if (d) el.setAttribute('dir', d);
+    if (d) setDir(el, d);
   });
   // a list follows most of its items, so the markers sit on the side most of the text starts from
   Array.prototype.forEach.call(root.querySelectorAll('ul, ol'), function(list){
@@ -44,11 +51,16 @@ function setDirections(root){
       var d = li.getAttribute && li.getAttribute('dir');
       if (d === 'rtl') r++; else if (d === 'ltr') l++;
     });
-    if (r || l) list.setAttribute('dir', r >= l ? 'rtl' : 'ltr');
+    if (r || l) setDir(list, r >= l ? 'rtl' : 'ltr');
   });
   Array.prototype.forEach.call(root.querySelectorAll('table'), function(table){
     var head = table.querySelector('th, td');
-    if (head && head.getAttribute('dir')) table.setAttribute('dir', head.getAttribute('dir'));
+    if (head && head.getAttribute('dir')) setDir(table, head.getAttribute('dir'));
+  });
+  // a callout reads from its title's side, so its coloured line and icon sit where a Persian callout starts: the right
+  Array.prototype.forEach.call(root.querySelectorAll('.callout'), function(callout){
+    var title = callout.querySelector('.callout-title-inner[dir]') || callout.querySelector('.callout-content [dir]');
+    if (title) setDir(callout, title.getAttribute('dir'));
   });
 }
 
@@ -101,10 +113,13 @@ function articleHead(root, ctx){
   var fm = ctx && ctx.frontmatter;
   if (!fm) return;
   var classes = [].concat(fm.cssclasses || fm.cssclass || []).join(' ').split(/[\s,]+/);
-  if (classes.indexOf('article') === -1 || (!fm.eyebrow && !fm.lede)) return;
+  if (classes.indexOf('article') === -1) return;
+  var meta = articleMeta(fm);
+  if (!fm.eyebrow && !fm.lede && !meta) return;
   var h1 = root.querySelector('h1');
   if (!h1 || h1.getAttribute('data-df-head')) return;
   h1.setAttribute('data-df-head', '1');
+  var last = h1;
   if (fm.eyebrow){
     var eb = document.createElement('div');
     eb.className = 'df-eyebrow';
@@ -116,8 +131,51 @@ function articleHead(root, ctx){
     var lede = document.createElement('p');
     lede.className = 'df-lede';
     lede.textContent = String(fm.lede);
-    h1.parentNode.insertBefore(lede, h1.nextSibling);
+    h1.parentNode.insertBefore(lede, last.nextSibling);
+    last = lede;
   }
+  if (meta){
+    h1.parentNode.insertBefore(meta, last.nextSibling);
+    last = meta;
+  }
+  // Daftarcheh draws the header's bottom line under its last part: the title, the lede or the row of properties
+  last.setAttribute('data-df-head-end', '');
+}
+
+/** The row of the note's properties under the lede, as Daftarcheh's article header has it («تاریخ: ۱۷ آبان ۱۴۰۵», #tags). */
+var FM_HIDDEN = /^(cssclass(es)?|eyebrow|lede|transition|position)$/i;
+function fmText(v){
+  if (Array.isArray(v)) return v.map(fmText).filter(Boolean).join('، ');
+  return v === null || v === undefined || typeof v === 'object' ? '' : String(v).trim();
+}
+function articleMeta(fm){
+  var props = [], tags = [];
+  Object.keys(fm).forEach(function(k){
+    if (FM_HIDDEN.test(k)) return;
+    var v = fmText(fm[k]);
+    if (!v) return;
+    if (/^tags?$/i.test(k)) tags = tags.concat(v.split(/[\s,،]+/).filter(Boolean));
+    else props.push([k, v]);
+  });
+  if (!props.length && !tags.length) return null;
+  var row = document.createElement('div');
+  row.className = 'df-meta';
+  props.forEach(function(p){
+    var item = row.appendChild(document.createElement('span'));
+    var key = item.appendChild(document.createElement('span'));
+    key.className = 'df-k';
+    key.textContent = p[0] + ':';
+    item.appendChild(document.createTextNode(' '));
+    var val = item.appendChild(document.createElement('b'));
+    val.setAttribute('dir', textDir(p[1]) || 'auto');
+    val.textContent = p[1];
+  });
+  if (tags.length){
+    var t = row.appendChild(document.createElement('span'));
+    t.textContent = tags.map(function(x){ return '#' + x.replace(/^#/, ''); }).join(' ');
+  }
+  row.setAttribute('dir', textDir(row.textContent) || 'rtl');
+  return row;
 }
 
 /** ```log — the lines starting with «!!» are the ones that matter, highlighted. */
@@ -143,8 +201,25 @@ function renderSvg(src, el){
 /* ---------- editor: each line its own direction ---------- */
 
 var FENCE_RE = /^\s*(`{3,}|~{3,})/;
-function lineDirections(view){
+/** Where bdiText would put <bdi> in a line, as [from, to] offsets: the editor isolates the same runs the reading view does. */
+var BDI_OPEN = '<bdi dir="ltr">', BDI_CLOSE = '</bdi>';
+function bdiRanges(text){
+  var out = bdiText(text), ranges = [], plain = '', at = 0, k = 0;
+  if (out.indexOf(BDI_OPEN) === -1) return ranges;
+  while (k < out.length){
+    if (out.startsWith(BDI_OPEN, k)){ at = plain.length; k += BDI_OPEN.length; continue; }
+    if (out.startsWith(BDI_CLOSE, k)){ ranges.push([at, plain.length]); k += BDI_CLOSE.length; continue; }
+    plain += out.charAt(k++);
+  }
+  return plain === text ? ranges : [];                // a line that itself contains «<bdi…>» is left alone
+}
+// an isolated left-to-right run; with bidiIsolate CodeMirror also moves the caret across it in the right order
+var isoMark = cmView.Decoration.mark ? cmView.Decoration.mark(Object.assign({ class: 'df-iso', attributes: { dir: 'ltr' } },
+  cmView.Direction ? { bidiIsolate: cmView.Direction.LTR } : {})) : null;
+function lineDirections(view, out){
   var builder = new cmState.RangeSetBuilder(), doc = view.state.doc;
+  var iso = isoMark ? new cmState.RangeSetBuilder() : null;
+  if (out) out.isolates = null;
   var ranges = view.visibleRanges;
   if (!ranges.length) return builder.finish();
   var lastLine = doc.lineAt(ranges[ranges.length - 1].to).number;
@@ -162,15 +237,23 @@ function lineDirections(view){
     } else if (inFence) ltr = true;
     var shown = visible.some(function(v){ return n >= v[0] && n <= v[1]; });
     if (!shown) continue;
-    var dir = ltr ? 'ltr' : textDir(text);
-    if (dir) builder.add(doc.line(n).from, doc.line(n).from, cmView.Decoration.line({ attributes: { dir: dir } }));
+    var dir = ltr ? 'ltr' : textDir(text), from = doc.line(n).from;
+    // data-df-dir carries the direction too: another plugin's line «dir» (RTL Support's dir="auto") may replace ours,
+    // and styles.css makes this one win
+    if (dir) builder.add(from, from, cmView.Decoration.line({ attributes: { dir: dir, 'data-df-dir': dir } }));
+    if (iso && dir === 'rtl') bdiRanges(text).forEach(function(r){ iso.add(from + r[0], from + r[1], isoMark); });
   }
+  if (out && iso) out.isolates = iso.finish();
   return builder.finish();
 }
 var directionPlugin = cmView.ViewPlugin.fromClass(class {
-  constructor(view){ this.decorations = lineDirections(view); }
-  update(u){ if (u.docChanged || u.viewportChanged) this.decorations = lineDirections(u.view); }
+  constructor(view){ this.decorations = lineDirections(view, this); }
+  update(u){ if (u.docChanged || u.viewportChanged) this.decorations = lineDirections(u.view, this); }
 }, { decorations: function(v){ return v.decorations; } });
+function isolatesOf(view){
+  var p = view.plugin(directionPlugin);
+  return (p && p.isolates) || cmView.Decoration.none;
+}
 
 /* ---------- the plugin ---------- */
 
@@ -185,7 +268,13 @@ class DaftarchehPlugin extends obsidian.Plugin {
     this.registerMarkdownCodeBlockProcessor('log', renderLog);
     this.registerMarkdownCodeBlockProcessor('svg', renderSvg);
     // caret, selection and arrow keys follow each line's own direction
-    this.registerEditorExtension([cmView.EditorView.perLineTextDirection.of(true), directionPlugin]);
+    var ext = [cmView.EditorView.perLineTextDirection.of(true), directionPlugin];
+    // inside right-to-left lines, «Load Balancer v2.0» and «/etc/hosts» keep their order, as in the reading view
+    if (isoMark && cmView.EditorView.decorations){
+      ext.push(cmView.EditorView.decorations.of(isolatesOf));
+      if (cmView.EditorView.bidiIsolatedRanges) ext.push(cmView.EditorView.bidiIsolatedRanges.of(isolatesOf));
+    }
+    this.registerEditorExtension(ext);
   }
 }
 module.exports = DaftarchehPlugin;

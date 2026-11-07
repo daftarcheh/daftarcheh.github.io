@@ -2,14 +2,38 @@
 
 راست‌به‌چپِ دفترچه و ظاهر مقاله‌اش در Obsidian:
 
-- هر پاراگراف، سرتیتر، مورد فهرست و خانهٔ جدول جهت خودش را از کلمه‌هایش می‌گیرد، با همان قاعدهٔ دفترچه. جملهٔ فارسی پر از اصطلاح انگلیسی راست‌به‌چپ می‌ماند.
-- داخل متن فارسی، تکه‌های انگلیسی، مسیرها و نسخه‌ها (`Load Balancer v2.0`، `/etc/hosts`) به‌هم‌ریخته نمی‌شوند.
-- در ویرایشگر (Source و Live Preview) هم هر خط جهت خودش را دارد. بلوک کد و front matter چپ‌به‌راست می‌مانند.
-- قلم‌های دفترچه: Vazirmatn، Inter و JetBrains Mono.
+- هر پاراگراف، سرتیتر، مورد فهرست و خانهٔ جدول جهت خودش را از کلمه‌هایش می‌گیرد، با همان قاعدهٔ دفترچه. جملهٔ فارسی پر از اصطلاح انگلیسی راست‌به‌چپ می‌ماند: «timeout cron از ۳۰۰ به ۶۰۰ ثانیه رسید.»
+- داخل متن فارسی، تکه‌های انگلیسی، مسیرها و نسخه‌ها (`Load Balancer v2.0`، `/etc/hosts`) به‌هم‌ریخته نمی‌شوند، در حالت خواندن و در ویرایشگر.
+- در ویرایشگر (Source و Live Preview) هم هر خط جهت خودش را دارد و مکان‌نما و کلیدهای جهت با آن حرکت می‌کنند. بلوک کد و front matter چپ‌به‌راست می‌مانند.
+- جهتِ دفترچه می‌ماند حتی وقتی خود Obsidian یا افزونهٔ دیگری (مثل RTL Support) به خط‌ها و پاراگراف‌ها `dir="auto"` می‌دهد.
+- قلم‌های دفترچه: Vazirmatn، Inter و JetBrains Mono، داخل خود افزونه (بی‌اینترنت هم کار می‌کند).
 - برچسب‌های `{ok: …}`، `{bad: …}`، `{warn: …}` و `{info: …}`، بلوک‌های ` ```log ` (خط‌های `!!` پررنگ) و ` ```svg `.
-- ظاهر مقاله برای یادداشت‌هایی که `cssclasses: article` دارند، با `eyebrow` و `lede` از front matter.
+- ظاهر مقاله برای یادداشت‌هایی که `cssclasses: article` دارند: `eyebrow` و `lede` از front matter، ردیف بقیهٔ ویژگی‌ها و برچسب‌ها زیر آن، فهرست عددی با شماره‌های فارسی در دایره، کادرها با خط کناری و جدول تمام‌عرض.
 
 ## نصب
+
+### با یک فرمان
+
+Windows (PowerShell). مسیر vault را در خط اول عوض کن:
+
+```powershell
+$vault = "C:\path\to\vault"
+[Net.ServicePointManager]::SecurityProtocol = 'Tls12'
+$p = "$vault\.obsidian\plugins\daftarcheh"; New-Item -ItemType Directory -Force $p | Out-Null
+"manifest.json","main.js","styles.css" | ForEach-Object { Invoke-WebRequest -UseBasicParsing "https://daftarcheh.github.io/obsidian/daftarcheh/$_" -OutFile "$p\$_" }
+```
+
+macOS و Linux:
+
+```bash
+vault=~/path/to/vault
+p="$vault/.obsidian/plugins/daftarcheh"; mkdir -p "$p"
+for f in manifest.json main.js styles.css; do curl -fsSL -o "$p/$f" "https://daftarcheh.github.io/obsidian/daftarcheh/$f"; done
+```
+
+بعد: Obsidian › Settings › Community plugins. اگر Restricted mode روشن است خاموشش کن، فهرست را تازه کن و **Daftarcheh** را فعال کن.
+
+### دستی (موبایل هم)
 
 1. در vault خودت پوشهٔ `.obsidian/plugins/daftarcheh/` را بساز.
 2. این سه فایل را در آن بگذار:
@@ -17,6 +41,11 @@
    - https://daftarcheh.github.io/obsidian/daftarcheh/main.js
    - https://daftarcheh.github.io/obsidian/daftarcheh/styles.css
 3. Obsidian › Settings › Community plugins: اگر خاموش است روشنش کن، فهرست را تازه کن و **Daftarcheh** را فعال کن.
+
+### تنظیم‌ها و به‌روزرسانی
+
+- Settings › Editor › Right-to-left (RTL) را **خاموش** بگذار؛ افزونه جهت هر خط را خودش تعیین می‌کند. افزونهٔ RTL Support هم دیگر لازم نیست.
+- به‌روزرسانی خودکار نیست: برای نسخهٔ تازه همان سه فایل را دوباره بگیر (همان فرمان بالا) و در Obsidian Ctrl+R بزن.
 
 ## ساختن
 

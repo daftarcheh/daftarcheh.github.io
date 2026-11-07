@@ -10,6 +10,14 @@ body {
 
 /* each block reads from its own side; code, maths and diagrams stay left-to-right */
 .markdown-rendered [dir], .markdown-source-view .cm-line[dir] { text-align: start; }
+/* a line's own direction wins over a «dir» another plugin puts on every line (RTL Support's dir="auto" would make
+   «timeout cron از ۳۰۰ …» left-to-right); CodeMirror reads this computed direction for the caret and arrow keys */
+.markdown-source-view .cm-line[data-df-dir="rtl"] { direction: rtl !important; unicode-bidi: isolate !important; text-align: start; }
+.markdown-source-view .cm-line[data-df-dir="ltr"] { direction: ltr !important; unicode-bidi: isolate !important; text-align: start; }
+.markdown-source-view .df-iso { unicode-bidi: isolate; }
+/* the same in the reading view: Obsidian's own post-processor may set dir="auto" on p, li and headings after ours */
+.markdown-rendered [data-df-dir="rtl"] { direction: rtl !important; unicode-bidi: isolate !important; }
+.markdown-rendered [data-df-dir="ltr"] { direction: ltr !important; unicode-bidi: isolate !important; }
 .markdown-rendered pre, .markdown-rendered .math-block, .markdown-rendered .mermaid,
 .markdown-source-view .HyperMD-codeblock { direction: ltr; text-align: left; }
 .markdown-rendered :not(pre) > code, .markdown-source-view .cm-inline-code { unicode-bidi: isolate; }
@@ -31,12 +39,16 @@ td .mz-tag { white-space: normal; }
 .theme-dark .mz-tag-warn { background: #33270f; color: #f0b45a; }
 
 /* ```log with «!!» lines */
-.markdown-rendered pre.df-log { background: #0f1a20; color: #d6e3e8; border: 1px solid #0f1a20; border-radius: 8px; padding: 12px 14px;
+.markdown-rendered pre.df-log { background: #0f1a20; color: #d6e3e8; border: 1px solid #0f1a20; border-radius: 8px; padding: 0 !important;
   font-family: var(--font-monospace); font-size: .8em; line-height: 1.6; overflow-x: auto; }
 .theme-dark .markdown-rendered pre.df-log { background: #11131a; border-color: #2b2e3b; }
 .markdown-rendered pre.df-log .hl-line { color: #ffd27a; }
 .hl-line { background: color-mix(in srgb, #f5c542 26%, transparent); }
 .markdown-rendered pre.df-log .hl-line { background: transparent; }
+/* the code inside is part of the one dark box: no box of its own, even under a theme that styles every code with !important;
+   the box's padding sits on the code, since themes zero a pre's padding (Dracula: padding: 0 !important) */
+.markdown-rendered pre.df-log > code { display: block; padding: 12px 14px !important; background: transparent !important; color: inherit !important;
+  border: 0 !important; border-radius: 0 !important; font-size: inherit !important; line-height: inherit; white-space: pre; }
 
 /* ```svg figures: var(--accent), var(--accent-soft), var(--surface), var(--line) as in Daftarcheh */
 .svgfig { direction: ltr; margin: .9em 0 1.3em; padding: 16px; overflow-x: auto; border-radius: 10px;
@@ -52,26 +64,49 @@ td .mz-tag { white-space: normal; }
 
 /* ---------- the article look: «cssclasses: article» ---------- */
 .markdown-preview-view.article { font-family: Vazirmatn, Vazir, Inter, Tahoma, sans-serif; font-size: 16.5px; line-height: 1.9; }
+.markdown-preview-view.article :is(h1, h2, h3) { color: var(--text-normal); }
 .markdown-preview-view.article .df-eyebrow { color: var(--text-accent); font-weight: 700; font-size: .82em; letter-spacing: .02em; }
-.markdown-preview-view.article h1 { font-size: clamp(1.6em, 4vw, 2.2em); font-weight: 800; line-height: 1.35; margin: .2em 0 .45em; text-wrap: balance; }
-.markdown-preview-view.article .df-lede { font-size: 1.1em; color: var(--text-normal); margin: 0 0 1.6em; padding-bottom: 1.4em;
-  border-bottom: 1px solid var(--background-modifier-border); }
-.markdown-preview-view.article h2 { font-size: 1.42em; font-weight: 800; line-height: 1.45; margin: 2.4em 0 .6em; border-bottom: 0; text-wrap: balance; }
+.markdown-preview-view.article h1 { font-size: clamp(1.6em, 4vw, 2.2em); font-weight: 800; line-height: 1.35; margin: .2em 0 .45em; padding: 0;
+  background: none; border: 0; text-wrap: balance; }
+.markdown-preview-view.article .df-lede { font-size: 1.1em; color: var(--text-normal); margin: 0 0 .9em; }
+.markdown-preview-view.article .df-meta { display: flex; flex-wrap: wrap; gap: .35em 1.4em; color: var(--text-muted); font-size: .85em; }
+.markdown-preview-view.article .df-meta b { color: var(--text-normal); font-weight: 600; }
+/* the header's line: Daftarcheh's .art-head has padding-bottom 1.4em and margin-bottom 2.2em of the article's 16.5px */
+.markdown-preview-view.article [data-df-head-end] { border-bottom: 1px solid var(--background-modifier-border); padding-bottom: 23px; margin-bottom: 36px; }
+.markdown-preview-view.article .df-lede[data-df-head-end] { padding-bottom: calc(.9em + 23px); }
+.markdown-preview-view.article h1[data-df-head-end] { padding-bottom: calc(.45em + 23px); }
+/* the properties are in the header's row, as in Daftarcheh: the Properties box would repeat them */
+.markdown-preview-view.article:has(.df-meta) .metadata-container { display: none; }
+.markdown-preview-view.article h2 { font-size: 1.42em; font-weight: 800; line-height: 1.45; margin: 2.4em 0 .6em; padding-bottom: 0; border-bottom: 0; text-wrap: balance; }
 .markdown-preview-view.article h3 { font-size: 1.13em; font-weight: 700; margin: 1.8em 0 .4em; text-wrap: balance; }
 .markdown-preview-view.article li { margin-bottom: .35em; }
 .markdown-preview-view.article :not(pre) > code { font-family: "JetBrains Mono", ui-monospace, Consolas, monospace; font-size: .84em;
-  background: color-mix(in srgb, var(--interactive-accent) 12%, transparent); color: inherit; padding: 1px 6px; border-radius: 4px; }
+  background: color-mix(in srgb, var(--interactive-accent) 12%, transparent); color: inherit; padding: 1px 6px; border-radius: 4px; border: 0; }
 .markdown-preview-view.article pre:not(.mermaid) { font-family: "JetBrains Mono", ui-monospace, Consolas, monospace; font-size: .8em;
   line-height: 1.6; border-radius: 8px; }
-.markdown-preview-view.article .callout { border-radius: 6px; padding: .9em 1.1em; }
+/* callouts: only the coloured line on the side the text starts from, as in Daftarcheh. --callout-color is «r, g, b» in older
+   Obsidian and a whole colour in newer (1.15: #ec7500), so the line is painted both ways and the invalid one is dropped */
+.markdown-preview-view.article .callout { position: relative; border-radius: 6px; padding: .9em 1.1em; padding-inline-start: calc(1.1em + 4px); border: 0; }
+.markdown-preview-view.article .callout::before { content: ""; position: absolute; inset-block: 0; inset-inline-start: 0; width: 4px;
+  background-color: rgb(var(--callout-color)); background-image: linear-gradient(var(--callout-color), var(--callout-color)); }
+.markdown-preview-view.article .callout-title { font-weight: 800; font-size: .9em; }
 .markdown-preview-view.article .callout[data-callout="summary"], .markdown-preview-view.article .callout[data-callout="abstract"],
 .markdown-preview-view.article .callout[data-callout="tldr"] { background: var(--background-secondary); border: 1px solid var(--background-modifier-border);
   border-radius: 10px; padding: 1.1em 1.3em; }
-.markdown-preview-view.article .callout[data-callout="summary"] .callout-title { color: var(--text-normal); }
-.markdown-preview-view.article table { font-size: .9em; border: 1px solid var(--background-modifier-border); border-radius: 8px;
-  border-collapse: separate; border-spacing: 0; overflow: hidden; }
+.markdown-preview-view.article .callout[data-callout="summary"] .callout-title { color: var(--text-normal); font-size: 1em; }
+.markdown-preview-view.article .callout:is([data-callout="summary"], [data-callout="abstract"], [data-callout="tldr"])::before { display: none; }
+.markdown-preview-view.article table { width: 100%; font-size: .9em; border: 1px solid var(--background-modifier-border); border-radius: 8px;
+  border-collapse: separate; border-spacing: 0; overflow: hidden; margin: .8em 0 1.3em; }
 .markdown-preview-view.article th, .markdown-preview-view.article td { padding: .65em .8em; border: 0; border-bottom: 1px solid var(--background-modifier-border); }
 .markdown-preview-view.article tr:last-child td { border-bottom: 0; }
 .markdown-preview-view.article th { color: var(--text-muted); font-size: .84em; }
-.markdown-preview-view.article ol[dir="rtl"] > li::marker { color: var(--text-accent); font-weight: 700; }
-.markdown-preview-view.article hr { border: 0; border-top: 1px solid var(--background-modifier-border); margin: 3.5em 0 1em; }
+/* numbered lists: Persian numbers in accent circles */
+.markdown-preview-view.article ol { list-style: none; padding-inline-start: 0; counter-reset: dfol; }
+.markdown-preview-view.article ol > li { counter-increment: dfol; position: relative; padding-inline-start: 2.3em; }
+.markdown-preview-view.article ol > li::before { content: counter(dfol, persian); position: absolute; inset-inline-start: 0; top: .42em;
+  width: 1.7em; height: 1.7em; border-radius: 50%; background: var(--interactive-accent); color: var(--text-on-accent, #fff);
+  font-weight: 700; font-size: .78em; line-height: 1; display: grid; place-items: center; }
+/* the closing line: only the last rule before the note's last block, and the paragraph after it quieter */
+.markdown-preview-view.article .el-hr:is(:has(+ :last-child), :has(+ * + .mod-footer)) > hr {
+  border: 0; border-top: 1px solid var(--background-modifier-border); margin: 3.5em 0 1em; }
+.markdown-preview-view.article .el-hr + .el-p:is(:last-child, :has(+ .mod-footer)) > p { color: var(--text-muted); font-size: .86em; }
