@@ -12,6 +12,17 @@
 
 ## نصب
 
+### با BRAT (پیشنهادی، با به‌روزرسانی خودکار)
+
+1. Obsidian › Settings › Community plugins: اگر Restricted mode روشن است خاموشش کن، **BRAT** را جستجو و نصب و فعال کن.
+2. Command palette (Ctrl+P) › **BRAT: Add a beta plugin for testing** و این را بچسبان:
+   ```
+   daftarcheh/daftarcheh.github.io
+   ```
+3. **Daftarcheh** را در Community plugins فعال کن.
+
+BRAT نسخه‌های تازه را خودش از [Releases](https://github.com/daftarcheh/daftarcheh.github.io/releases) می‌گیرد.
+
 ### با یک فرمان
 
 Windows (PowerShell). مسیر vault را در خط اول عوض کن:
@@ -45,8 +56,14 @@ for f in manifest.json main.js styles.css; do curl -fsSL -o "$p/$f" "https://daf
 ### تنظیم‌ها و به‌روزرسانی
 
 - Settings › Editor › Right-to-left (RTL) را **خاموش** بگذار؛ افزونه جهت هر خط را خودش تعیین می‌کند. افزونهٔ RTL Support هم دیگر لازم نیست.
-- به‌روزرسانی خودکار نیست: برای نسخهٔ تازه همان سه فایل را دوباره بگیر (همان فرمان بالا) و در Obsidian Ctrl+R بزن.
+- با BRAT به‌روزرسانی خودکار است. اگر با فرمان یا دستی نصب کرده‌ای، برای نسخهٔ تازه همان سه فایل را دوباره بگیر (همان فرمان بالا) و در Obsidian Ctrl+R بزن.
 
 ## ساختن
 
 `main.js` و `styles.css` از `obsidian/src/` و خود `src/app.js` ساخته می‌شوند (`python3 tools/obsidian.py`، که `tools/build.py` هم اجرایش می‌کند). منطق راست‌به‌چپ، پاک‌سازی SVG و قلم‌ها مستقیم از برنامه کپی می‌شوند، پس Obsidian و دفترچه یک یادداشت را یک‌جور می‌خوانند. آزمون: `node tools/obsidian-test.js`.
+
+### نسخه و انتشار
+
+نسخهٔ افزونه `<نسخهٔ برنامه>.<وصله>` است، مثل `2.57.1`: نسخهٔ برنامه از `version.json` و وصله از `obsidian/src/VERSION`. با نسخهٔ تازهٔ برنامه، افزونه خودش از `.0` شروع می‌کند. برای اصلاحی فقط در افزونه، عدد آخر `obsidian/src/VERSION` را یکی بالا ببر و دوباره بساز.
+
+هر بار نسخهٔ `obsidian/daftarcheh/manifest.json` در `main` عوض شود، [`obsidian-release.yml`](../.github/workflows/obsidian-release.yml) برای آن نسخه یک Release با همان سه فایل می‌سازد و BRAT از آن به‌روز می‌شود.

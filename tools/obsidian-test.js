@@ -43,6 +43,8 @@ Module._load = function(req, parent, isMain){ return stubs[req] || load0.apply(t
 const Plugin = require(path.join(__dirname, '..', 'obsidian', 'daftarcheh', 'main.js'));
 Module._load = load0;
 new Plugin().onload();
+const manifest = JSON.parse(require('fs').readFileSync(path.join(__dirname, '..', 'obsidian', 'daftarcheh', 'manifest.json'), 'utf8'));
+ok('the manifest version is x.y.z (BRAT and Obsidian compare it as semver)', /^\d+\.\d+\.\d+$/.test(manifest.version), manifest.version);
 ok('the plugin registers a reading-view processor, log and svg blocks, and an editor extension',
   registered.post.length === 1 && registered.blocks.log && registered.blocks.svg && registered.editor.length === 1);
 

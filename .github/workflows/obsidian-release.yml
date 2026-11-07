@@ -1,0 +1,36 @@
+# The Obsidian plugin as a GitHub release, so BRAT can install and update it: a new version in
+# obsidian/daftarcheh/manifest.json (tools/obsidian.py, from version.json and obsidian/src/VERSION) gets a release
+# tagged with that version, carrying the three files. The site itself is still served from main as before.
+name: Obsidian plugin release
+
+on:
+  push:
+    branches: [main]
+    paths: ['obsidian/daftarcheh/manifest.json']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Release the plugin's version unless it already has one
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v=$(jq -r .version obsidian/daftarcheh/manifest.json)
+          if ! [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::manifest version '$v' is not x.y.z"; exit 1
+          fi
+          if gh release view "$v" >/dev/null 2>&1; then
+            echo "release $v already exists"; exit 0
+          fi
+          gh release create "$v" \
+            obsidian/daftarcheh/main.js obsidian/daftarcheh/manifest.json obsidian/daftarcheh/styles.css \
+            --target "$GITHUB_SHA" --latest \
+            --title "Daftarcheh for Obsidian $v" \
+            --notes "نصب و به‌روزرسانی با BRAT یا دستی: https://github.com/${GITHUB_REPOSITORY}/tree/main/obsidian"

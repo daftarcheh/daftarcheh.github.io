@@ -53,9 +53,18 @@ def fonts(src: str) -> str:
     return '\n'.join(out)
 
 
+def plugin_version(release: str) -> str:
+    """The plugin's own version, semver as Obsidian and BRAT compare it: <app release>.<patch>. The patch comes from
+    obsidian/src/VERSION while that file belongs to this release, so a fix to the plugin alone ships (BRAT updates on a
+    higher version) without a new app release; a new app release starts the plugin again at .0."""
+    f = SRC / 'VERSION'
+    v = f.read_text(encoding='utf-8').strip() if f.exists() else ''
+    return v if re.fullmatch(re.escape(release) + r'\.\d+', v) else release + '.0'
+
+
 def main() -> int:
     app = APP.read_text(encoding='utf-8')
-    version = json.loads((ROOT / 'version.json').read_text(encoding='utf-8'))['release']
+    version = plugin_version(json.loads((ROOT / 'version.json').read_text(encoding='utf-8'))['release'])
     OUT.mkdir(parents=True, exist_ok=True)
     shared = '\n'.join(top_level(app, n) for n in SHARED)
     main_js = (SRC / 'main.js').read_text(encoding='utf-8').replace('/*@@SHARED@@*/', '/* ---------- SHARED: from src/app.js ---------- */\n' + shared)
