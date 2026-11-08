@@ -9985,6 +9985,36 @@ function nbCommitMessage(list){
     return page(1);
   }
   /** With `full`, the tree is read even when the branch did not move: a pull the user asked for repairs everything. */
+  /**
+   * The branch's ref is missing (404/409). GitHub says the same for three very different things, and taking them all
+   * for «a new, empty repository» showed «همگام» over nothing: a repository name that is wrong (or that the token
+   * cannot see), a branch name that is not the repository's (main ↔ master) — where a send then made a second branch
+   * nobody looks at — and the truly empty repository. → { empty } | { other: <default branch> }, or a clear error.
+   */
+  function nbWhyNoRef(){
+    if (nbIsGL()) return Promise.resolve({ empty: true });
+    var sp = nbSplitRepo(), base = '/repos/' + sp.owner + '/' + sp.name;
+    return nbApi('GET', base).then(function(info){
+      var def = info && info.default_branch;
+      if (!def || def === C.branch) return { empty: true };
+      return nbApi('GET', base + '/git/ref/heads/' + encodeURIComponent(def)).then(function(){ return { other: def }; }, function(e){
+        if (e.status === 404 || e.status === 409) return { empty: true };
+        throw e;
+      });
+    }, function(e){
+      if (e.status === 404) throw nbError(404, 'مخزن «' + C.repo + '» پیدا نشد، یا توکن به آن دسترسی ندارد — نام مخزن و دسترسی توکن را در تنظیمات › اتصال ببین');
+      throw e;
+    });
+  }
+  /** On a device that has never synced the branch, the repository's own branch is taken; later, it is an error. */
+  function nbAdoptDefaultBranch(why){
+    if (!why.other) return false;
+    if (NB.lastCommit) throw nbError(404, 'شاخهٔ «' + C.branch + '» در مخزن نیست — شاخهٔ اصلی مخزن «' + why.other + '» است (تنظیمات › اتصال › شاخه)');
+    toast('شاخهٔ «' + C.branch + '» در مخزن نبود — دفترچه روی شاخهٔ اصلی مخزن، «' + why.other + '»، کار می کند', 'check');
+    C.branch = why.other;
+    nbSaveCfg();
+    return true;
+  }
   function nbRemoteTree(full){
     return nbRef().then(function(r){
       var sha = r.sha;
@@ -10009,8 +10039,11 @@ function nbCommitMessage(list){
         };
       });
     }, function(e){
-      if (e.status === 404 || e.status === 409) return { sha: '', unchanged: false, entries: [], empty: true };
-      throw e;
+      if (e.status !== 404 && e.status !== 409) throw e;
+      return nbWhyNoRef().then(function(why){
+        if (nbAdoptDefaultBranch(why)) return nbRemoteTree(full);
+        return { sha: '', unchanged: false, entries: [], empty: true };
+      });
     });
   }
   function nbPull(opts){
@@ -10309,8 +10342,13 @@ function nbCommitMessage(list){
       }
       return true;
     }, function(e){
-      if (e.status === 404 || e.status === 409) return true; // brand new repository (or the branch is not there yet)
-      throw e;
+      if (e.status !== 404 && e.status !== 409) throw e;
+      // a brand new repository; never a second branch made by mistake next to the one the notes live on
+      return nbWhyNoRef().then(function(why){
+        if (!nbAdoptDefaultBranch(why)) return true;
+        NB.busy = false;
+        return nbPush({ retried: opts.retried, force: opts.force, loud: opts.loud, only: opts.only }).then(function(r){ return { done: r }; });
+      });
     }).then(function(go){
       if (go !== true) return go && go.done !== undefined ? go.done : go;
       // the files the repository really has: from our branch, else from the default branch the new branch will start from
@@ -10784,6 +10822,7 @@ function nbCommitMessage(list){
     else if (NB.busy) NB.state = 'sync';
     else if (NB.conflicts.length) NB.state = 'conflict';
     else if (navigator.onLine === false) NB.state = 'offline';
+    else if (NB.error) NB.state = 'error';
     else if (nbCountDirty()) NB.state = 'pending';
     else if (C && C.repo) NB.state = 'ok';   // read-only is fine without a token on a public repository
     else NB.state = 'off';
@@ -17629,7 +17668,7 @@ function nbCommitMessage(list){
     quick: nbQuickInbox, encrypt: nbToggleEncrypt, isEncrypted: nbIsEncrypted, encryptText: nbEncrypt, decryptText: nbDecrypt,
     attach: nbAddAttachment, attachments: function(){ return NB.attach; }, downloadAttachment: nbDownloadAttachment,
     profiles: nbProfiles, useProfile: nbUseProfile, switchVault: nbSwitchVault, vaultAdd: nbVaultAdd, vaultRemove: nbVaultRemove, vaultList: nbVaultList, vaultName: nbVaultName, reload: nbReloadFiles,
-    provider: function(p){ if (p) C.provider = p; return C.provider; }, ref: nbRef, tree: nbRemoteTree, fileText: nbFileText, history: nbHistoryList,
+    provider: function(p){ if (p) C.provider = p; return C.provider; }, ref: nbRef, say: nbSay, tree: nbRemoteTree, fileText: nbFileText, history: nbHistoryList,
     state: function(){ return NB; },
     files: function(){ return NB.files; },
     cfg: function(o){ if (o){ Object.assign(C, o); nbSaveCfg(); nbSay(); } return C; },

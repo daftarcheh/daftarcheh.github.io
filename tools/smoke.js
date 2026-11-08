@@ -34,6 +34,8 @@ function api(data, status = 200){
 function handleApi(method, url, body){
   const u = new URL(url), p = decodeURIComponent(u.pathname).replace(/^\/repos\/[^/]+\/[^/]+/, '');
   const b = body ? JSON.parse(body) : null;
+  // a repository that does not exist, or that the token cannot see: GitHub answers 404 to everything about it
+  if (/^\/repos\/me\/missing/.test(u.pathname)) return api({ message: 'Not Found' }, 404);
   if (p === '/gists' && method === 'POST'){
     // a fresh gist: its raw address answers only after a moment (or never, when the test says so)
     const id = require('crypto').randomBytes(16).toString('hex'), content = Object.values(b.files)[0].content;
@@ -1228,6 +1230,29 @@ win.addEventListener('error', (e) => { bootError = e.message; });
     pasteText('یک تب دیگر ' + Date.now()); await sleep(40);
     const badge = (doc.querySelector('#tabsList [data-tab="' + yTab + '"] .tab-f') || {}).textContent || '';
     ok('فرمتی که دستی Markdown شده، کنار تب هم YAML نشان داده نمی شود', !/YAML/.test(badge), badge);
+  }
+  { // «همگام» only when it is true: a wrong repository or branch is an error, not an «empty repository»
+    for (let i = 0; i < 4 && nbu.closeTopLayer(); i++) await sleep(10);
+    const cfg0 = Object.assign({}, nbu.cfg()), st = nbu.state();
+    const commitsBefore = repo.commits.length;
+    nbu.cfg({ repo: 'me/missing-notes' });
+    await nbu.pull({ quiet: true }); await sleep(20);
+    ok('مخزن اشتباه یا بی دسترسی: «خطا»، نه «همگام» با دفترچهٔ خالی', st.state === 'error' && /پیدا نشد|دسترسی/.test(st.error), [st.state, st.error]);
+    nbu.say(); await sleep(10);
+    ok('و خطا با بازکشیدن وضعیت دوباره «همگام» نمی شود', st.state === 'error', st.state);
+    nbu.cfg({ repo: cfg0.repo, branch: 'master' });
+    await nbu.pull({ quiet: true }); await sleep(20);
+    ok('شاخهٔ ناموجود روی دستگاهی که قبلاً همگام شده: خطای روشن با اسم شاخهٔ اصلی', st.state === 'error' && /شاخهٔ «master»/.test(st.error) && /«main»/.test(st.error), [st.state, st.error]);
+    nbu.write('شاخه/یادداشت.md', '# شاخه\nمتن\n');
+    await nbu.push({ loud: false }); await sleep(20);
+    ok('و ارسال، شاخهٔ دومی کنار شاخهٔ اصلی نمی سازد', repo.commits.length === commitsBefore && st.state === 'error', [repo.commits.length - commitsBefore, st.state]);
+    const last = st.lastCommit; st.lastCommit = '';
+    await nbu.pull({ quiet: true }); await sleep(20);
+    ok('دستگاهی که هنوز همگام نشده: شاخهٔ اصلی مخزن خودکار برداشته می شود', nbu.cfg().branch === 'main' && st.state !== 'error', [nbu.cfg().branch, st.state, st.error]);
+    if (!st.lastCommit) st.lastCommit = last;
+    await nbu.push({ loud: false }); await sleep(20);
+    ok('بعد از درست شدن، ارسال می رود و وضعیت دوباره «همگام» است', repo.files.has('شاخه/یادداشت.md') && st.state === 'ok', [st.state, st.error]);
+    nbu.cfg({ branch: cfg0.branch || 'main' });
   }
   console.log(`\n${fail === 0 ? 'ALL GOOD' : 'FAILURES'}: ${pass} passed, ${fail} failed`);
   win.close();
