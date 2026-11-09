@@ -7746,6 +7746,23 @@ if (typeof document !== 'undefined'){
     if (e.altKey && !mod && /^Digit[123]$/.test(e.code)){ e.preventDefault(); setView(['editor', 'split', 'preview'][+e.code.slice(5) - 1]); saveState(); }
   });
   window.addEventListener('pagehide', function(){ saveState(); remember(ta.value, state.fmt); });
+  /* Ctrl+C with nothing selected anywhere copies the whole text as it was written (the Markdown, not the page),
+     also while reading. A selection, a field being typed in, a dialog or the slides keep their own copy. */
+  document.addEventListener('keydown', function(e){
+    if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.code !== 'KeyC' || e.isComposing) return;
+    var t = e.target;
+    if (t && t !== ta && isEditable(t)) return;
+    if (t === ta && ta.selectionStart !== ta.selectionEnd) return;
+    var sel = window.getSelection ? window.getSelection() : null;
+    if (sel && !sel.isCollapsed && String(sel).length) return;
+    if (!palette.hidden || document.querySelector('.modal:not([hidden]), .deck:not([hidden]), #nbMenu:not([hidden])')) return;
+    var text = ta.value;
+    if (!text.trim()) return;
+    e.preventDefault();
+    copyToClipboard('', text).then(function(ok){
+      toast(ok ? 'کل متن کپی شد — ' + faNum(text.split('\n').length) + ' خط' : 'کپی نشد', ok ? 'copy' : 'x');
+    });
+  });
   window.addEventListener('hashchange', readShareHash);
 
   /* --- installable app + offline cache (only when served over http/https; a local file is already offline) --- */

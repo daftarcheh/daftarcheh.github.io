@@ -1254,6 +1254,27 @@ win.addEventListener('error', (e) => { bootError = e.message; });
     ok('بعد از درست شدن، ارسال می رود و وضعیت دوباره «همگام» است', repo.files.has('شاخه/یادداشت.md') && st.state === 'ok', [st.state, st.error]);
     nbu.cfg({ branch: cfg0.branch || 'main' });
   }
+  { // Ctrl+C with nothing selected copies the whole raw text, also while reading; a selection keeps its own copy
+    for (let i = 0; i < 4 && nbu.closeTopLayer(); i++) await sleep(10);
+    let copied = null;
+    const origWrite = win.navigator.clipboard && win.navigator.clipboard.writeText;
+    if (!win.navigator.clipboard) Object.defineProperty(win.navigator, 'clipboard', { value: {}, configurable: true });
+    win.navigator.clipboard.writeText = (t) => { copied = t; return Promise.resolve(); };
+    const raw = '# کپی کل متن\n\n**پررنگ** و `کد` و [پیوند](https://x.y)\n';
+    pasteText(raw); await sleep(40);
+    doc.body.dispatchEvent(new win.KeyboardEvent('keydown', { code: 'Digit3', key: '3', altKey: true, bubbles: true, cancelable: true })); await sleep(20);
+    win.getSelection().removeAllRanges();
+    const ev = new win.KeyboardEvent('keydown', { code: 'KeyC', key: 'c', ctrlKey: true, bubbles: true, cancelable: true });
+    doc.body.dispatchEvent(ev); await sleep(20);
+    ok('Ctrl+C بی انتخاب، در حالت خواندن: کل متن خام (Markdown) کپی شد', copied === raw && ev.defaultPrevented, copied);
+    copied = null;
+    const p = doc.querySelector('#zoomWrap p'); const r = doc.createRange(); r.selectNodeContents(p); win.getSelection().removeAllRanges(); win.getSelection().addRange(r);
+    const ev2 = new win.KeyboardEvent('keydown', { code: 'KeyC', key: 'c', ctrlKey: true, bubbles: true, cancelable: true });
+    doc.body.dispatchEvent(ev2); await sleep(20);
+    ok('با یک انتخاب، Ctrl+C همان انتخاب را می گذارد (دست نمی زند)', copied === null && !ev2.defaultPrevented);
+    win.getSelection().removeAllRanges();
+    if (origWrite) win.navigator.clipboard.writeText = origWrite;
+  }
   console.log(`\n${fail === 0 ? 'ALL GOOD' : 'FAILURES'}: ${pass} passed, ${fail} failed`);
   win.close();
   process.exit(fail === 0 ? 0 : 1);
