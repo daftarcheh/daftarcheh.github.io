@@ -10824,6 +10824,18 @@ function nbCommitMessage(list){
     nbPush({});
   }
 
+  /** GitHub's «new fine-grained token» form, filled in: a name, the repository's owner and the one permission needed.
+      The repository itself cannot be preselected by link; the form asks for it. */
+  function nbGithubTokenUrl(kind, repo){
+    repo = String(repo == null ? (C && C.repo) || '' : repo).trim();
+    var owner = (/^([A-Za-z0-9-]+)\//.exec(repo) || [])[1] || '';
+    var q = kind === 'gist'
+      ? { name: 'Daftarcheh shares', description: 'Daftarcheh: share notes as secret gists', expires_in: '365', gists: 'write' }
+      : { name: 'Daftarcheh ' + (repo || 'notes'), description: 'Daftarcheh notebook: read and write the notes', target_name: owner, expires_in: '365', contents: 'write' };
+    return 'https://github.com/settings/personal-access-tokens/new?' + Object.keys(q).filter(function(k){ return q[k]; }).map(function(k){
+      return k + '=' + encodeURIComponent(q[k]);
+    }).join('&');
+  }
   /* --- sync state --- */
   var NB_STATES = {
     off: { t: 'دفترچه وصل نیست', c: 'nb-off' },
@@ -12231,7 +12243,7 @@ function nbCommitMessage(list){
       + (NB.locked ? '<div class="nb-actions"><button class="btn-soft sm" type="button" data-nb-cfg="unlock">باز کردن قفل توکن</button></div>' : '')
       + '<ol class="nb-steps">' + (gl
         ? '<li>در گیت لب یک مخزن (حتی خالی) بساز.</li><li><a href="https://gitlab.com/-/user_settings/personal_access_tokens" target="_blank" rel="noopener">توکن تازه</a> با دسترسی <b dir="ltr">api</b> بساز.</li>'
-        : '<li>در گیت هاب یک مخزن خصوصی (حتی خالی) بساز.</li><li><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">توکن fine-grained</a> بساز: فقط همین مخزن، دسترسی <b>Contents: Read and write</b>.</li>')
+        : '<li>در گیت هاب یک مخزن خصوصی (حتی خالی) بساز.</li><li><a href="' + escapeHtml(nbGithubTokenUrl('repo')) + '" data-nb-toklink="repo" target="_blank" rel="noopener">توکن fine-grained</a> بساز: فرم از قبل پر است (اسم، صاحب مخزن، <b>Contents: Read and write</b>). در «Repository access» فقط همین مخزن را انتخاب کن و «Generate token» را بزن.</li>')
       + '<li>مخزن و توکن را اینجا بگذار و «آزمایش اتصال» را بزن.</li></ol>'
       + '<div class="nb-actions"><button class="btn-primary sm" type="button" data-nb-cfg="test">آزمایش اتصال</button></div>'
       + '<p class="nb-hint" id="nbTestOut"></p>'
@@ -12370,6 +12382,8 @@ function nbCommitMessage(list){
       if (e.target.closest('[data-nb-set-back]')){ nbDrawSettings(''); return; }
       var prov = e.target.closest('[data-nb-prov]');
       if (prov){ $('nbProvider').value = prov.dataset.nbProv; nbSettingsApply(); nbDrawSettings(); return; }
+      var tokLink = e.target.closest('[data-nb-toklink]');
+      if (tokLink){ tokLink.href = nbGithubTokenUrl(tokLink.getAttribute('data-nb-toklink'), $('nbRepo') ? $('nbRepo').value : undefined); return; }
       var run = e.target.closest('[data-nb-run]');
       if (run){ runAction(run.dataset.nbRun); return; }
       var tm = e.target.closest('[data-theme-mode]');
@@ -16565,7 +16579,7 @@ function nbCommitMessage(list){
       + '<h5>توکن برای اشتراک</h5>'
       + '<div class="nb-field"><label>توکن گیت هاب با دسترسی Gists (اختیاری)</label><input class="nb-input" id="nbGistToken" dir="ltr" type="password" autocomplete="off" placeholder="'
       + ((C.provider || 'github') === 'github' ? 'خالی = همان توکن مخزن' : 'github_pat_…') + '" value="' + escapeHtml(C.gistToken || '') + '">'
-      + '<small class="nb-mini-text">در <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">گیت هاب</a>، Account permissions › Gists › Read and write.</small></div>';
+      + '<small class="nb-mini-text">در <a href="' + escapeHtml(nbGithubTokenUrl('gist')) + '" data-nb-toklink="gist" target="_blank" rel="noopener">گیت هاب</a> (فرم از قبل پر است)، Account permissions › Gists › Read and write.</small></div>';
   }
   /** Plain text behind a share: the open note when it is still here, otherwise the gist itself. */
   function nbSharePlain(rec, pass){

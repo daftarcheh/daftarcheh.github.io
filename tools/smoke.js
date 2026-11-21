@@ -1299,6 +1299,15 @@ win.addEventListener('error', (e) => { bootError = e.message; });
     await until(() => /نسخهٔ دو از دستگاه دیگر/.test(doc.getElementById('input').value), 6000);
     ok('دکمهٔ تازه کردن روی یادداشت: آخرین نسخهٔ مخزن آمد', /نسخهٔ دو از دستگاه دیگر/.test(doc.getElementById('input').value), doc.getElementById('input').value.slice(0, 50));
   }
+  { // the «make a token» links open GitHub's form already filled in, for the repository typed in the field
+    const vmx = require('vm'), ctx = { console, document: undefined };
+    const src = app.match(/  function nbGithubTokenUrl\(kind, repo\)\{[\s\S]*?\n  \}/)[0];
+    const url = new Function('C', src + '; return nbGithubTokenUrl;')({ repo: 'someone/my-notes' });
+    const u = new URL(url('repo')), g = new URL(url('gist'));
+    ok('لینک توکن مخزن: صاحب مخزن، Contents نوشتن، اسم با اسم مخزن', u.pathname === '/settings/personal-access-tokens/new' && u.searchParams.get('target_name') === 'someone' && u.searchParams.get('contents') === 'write' && /my-notes/.test(u.searchParams.get('name')), url('repo'));
+    ok('لینک توکن گیست: Gists نوشتن', g.searchParams.get('gists') === 'write' && !g.searchParams.get('contents'));
+    ok('مخزنی که تازه در کادر نوشته شده حساب می شود', new URL(url('repo', 'other-org/x')).searchParams.get('target_name') === 'other-org');
+  }
   console.log(`\n${fail === 0 ? 'ALL GOOD' : 'FAILURES'}: ${pass} passed, ${fail} failed`);
   win.close();
   process.exit(fail === 0 ? 0 : 1);
