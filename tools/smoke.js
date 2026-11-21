@@ -1308,6 +1308,44 @@ win.addEventListener('error', (e) => { bootError = e.message; });
     ok('لینک توکن گیست: Gists نوشتن', g.searchParams.get('gists') === 'write' && !g.searchParams.get('contents'));
     ok('مخزنی که تازه در کادر نوشته شده حساب می شود', new URL(url('repo', 'other-org/x')).searchParams.get('target_name') === 'other-org');
   }
+  { // a text from a share link: its link can be copied; saved into the notebook, refreshing asks where from
+    for (let i = 0; i < 4 && nbu.closeTopLayer(); i++) await sleep(10);
+    let copied = null;
+    if (!win.navigator.clipboard) Object.defineProperty(win.navigator, 'clipboard', { value: {}, configurable: true });
+    win.navigator.clipboard.writeText = (t) => { copied = t; return Promise.resolve(); };
+    const sh = await nbu.shareCreate({ title: 'ذخیره از لینک', text: '# ذخیره از لینک\nنسخهٔ یک\n', path: '' }, 'key', '', 0);
+    await sleep(800);
+    await nbu.readGist('#g=me/' + sh.id + '.' + sh.key); await sleep(60);
+    const tabId = doc.querySelector('#tabsList [aria-selected="true"]').dataset.tab;
+    win.nbCopyShareLink(); await sleep(20);
+    ok('کپی لینک اشتراک: همان لینکی که تب از آن باز شده', copied && copied.endsWith('#g=me/' + sh.id + '.' + sh.key), copied);
+    // save it into the notebook (Ctrl+S on a temp tab)
+    doc.body.dispatchEvent(new win.KeyboardEvent('keydown', { code: 'KeyS', key: 's', ctrlKey: true, bubbles: true, cancelable: true })); await sleep(40);
+    doc.getElementById('nbSaveTitle').value = 'ذخیره از لینک';
+    doc.getElementById('nbMiniOk').click(); await sleep(40);
+    const savedPath = Object.keys(nbu.files()).find((p) => /ذخیره از لینک\.md$/.test(p));
+    ok('ذخیره در دفترچه: تب یادداشت شد و لینکش را نگه داشت', !!savedPath && doc.querySelector('#tabsList [data-tab="' + tabId + '"]').classList.contains('nb-tab'), savedPath);
+    rawGists.set(sh.id, await nbu.encryptText(JSON.stringify({ t: 'ذخیره از لینک', x: '# ذخیره از لینک\nنسخهٔ دو از نویسنده\n' }), sh.key));
+    doc.body.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'F5', bubbles: true, cancelable: true })); await sleep(40);
+    const items = [...doc.querySelectorAll('#nbMenu button')].map((b) => b.textContent);
+    ok('F5 روی یادداشتِ ذخیره‌شده از لینک: می پرسد از کجا (لینک، گیت، جدا کردن)', items.some((l) => /از لینک اشتراک/.test(l)) && items.some((l) => /از مخزن گیت/.test(l)) && items.some((l) => /جدا کردن از لینک/.test(l)), items);
+    [...doc.querySelectorAll('#nbMenu button')].find((b) => /از لینک اشتراک/.test(b.textContent)).click();
+    await until(() => /نسخهٔ دو از نویسنده/.test(doc.getElementById('input').value), 4000);
+    ok('«از لینک»: نسخهٔ تازه در خود یادداشت نشست و برای ارسال به گیت صف شد', /نسخهٔ دو از نویسنده/.test(nbu.files()[savedPath].text || '') && nbu.files()[savedPath].dirty, [nbu.files()[savedPath].text, nbu.files()[savedPath].dirty]);
+    await nbu.push({ loud: false });
+    ok('و با ارسال به مخزن رفت', /نسخهٔ دو از نویسنده/.test((repo.files.get(savedPath) || {}).text || ''));
+    // edited after the last fetch: it asks before replacing
+    const inp = doc.getElementById('input'); inp.value = inp.value + 'ویرایش خودم\n'; inp.dispatchEvent(new win.Event('input', { bubbles: true })); await sleep(20);
+    rawGists.set(sh.id, await nbu.encryptText(JSON.stringify({ t: 'ذخیره از لینک', x: '# ذخیره از لینک\nنسخهٔ سه\n' }), sh.key));
+    await win.nbShareRefresh(tabId); await sleep(40);
+    ok('یادداشتِ ویرایش‌شده: پیش از جایگزینی تأیید می خواهد', !doc.getElementById('nbMini').hidden && /ویرایش کرده/.test(doc.getElementById('nbMini').textContent) && /ویرایش خودم/.test(inp.value));
+    for (let i = 0; i < 4 && nbu.closeTopLayer(); i++) await sleep(10);
+    doc.body.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'F5', bubbles: true, cancelable: true })); await sleep(40);
+    [...doc.querySelectorAll('#nbMenu button')].find((b) => /جدا کردن از لینک/.test(b.textContent)).click(); await sleep(20);
+    doc.body.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'F5', bubbles: true, cancelable: true })); await sleep(40);
+    ok('جدا کردن از لینک: از این به بعد F5 مستقیم از مخزن، بی منو', doc.getElementById('nbMenu').hidden !== false || ![...doc.querySelectorAll('#nbMenu button')].some((b) => /از لینک اشتراک/.test(b.textContent)));
+    await until(() => !nbu.state().busy, 4000);
+  }
   console.log(`\n${fail === 0 ? 'ALL GOOD' : 'FAILURES'}: ${pass} passed, ${fail} failed`);
   win.close();
   process.exit(fail === 0 ? 0 : 1);

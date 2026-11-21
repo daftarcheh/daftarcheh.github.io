@@ -6257,6 +6257,7 @@ if (typeof document !== 'undefined'){
       ['copy', 'کپی متن تب', '', function(){ copyToClipboard('', t.id === activeTab ? ta.value : t.text).then(function(ok){ toast(ok ? 'متن تب کپی شد' : 'کپی انجام نشد', ok ? 'copy' : 'x'); }); }, !t.text.trim()],
       t.nb ? false : ['grid', 'نمایش به‌صورت…', '', function(){ switchTab(id); if (window.nbFmtMenuAt) setTimeout(function(){ window.nbFmtMenuAt(x, y); }, 0); }, !t.text.trim()],
       t.src && window.nbShareRefresh ? ['redo', 'بررسی نسخهٔ تازهٔ این متن اشتراکی', '', function(){ window.nbShareRefresh(id); }] : false,
+      t.src && window.nbCopyShareLink ? ['link', 'کپی لینک اشتراک', '', function(){ window.nbCopyShareLink(id); }] : false,
       null,
       ['x', 'بستن', 'Alt W', function(){ closeTab(id); }, t.pinned],
       ['x', 'بستن بقیه', '', function(){ closeManyTabs(false, [id], id); }, !others],
@@ -11543,6 +11544,7 @@ function nbCommitMessage(list){
       { label: 'تکثیر', act: after(function(){ duplicateTab(id); }) },
       { label: 'کپی متن', act: function(){ copyToClipboard('', t.id === activeTab ? ta.value : t.text).then(function(ok){ toast(ok ? 'کپی شد' : 'کپی نشد', ok ? 'copy' : 'x'); }); } },
       t.src ? { label: 'بررسی نسخهٔ تازه (از لینک اشتراک)', act: function(){ nbPhoneLeavePanel(); nbShareRefresh(id); } } : null,
+      t.src ? { label: 'کپی لینک اشتراک', act: function(){ nbCopyShareLink(id); } } : null,
       hasText ? { label: 'نمایش به‌صورت…', act: function(){ nbPhoneLeavePanel(); switchTab(id); setTimeout(function(){ nbFmtMenuAt(innerWidth - 16, 80); }, 0); } } : null,
       null,
       others.length ? { label: 'بستن بقیهٔ تب های موقت (' + faNum(others.length) + ')', act: after(function(){
@@ -12732,10 +12734,35 @@ function nbCommitMessage(list){
   function nbRefreshCurrent(){
     var t = currentTab(), btn = $('btnRefreshNote');
     if (!t || !(t.nb || t.src)){ toast('این تب نه یادداشت دفترچه است نه متنِ لینک اشتراک', 'x'); return Promise.resolve(false); }
-    if (btn) btn.classList.add('spin');
-    var done = function(r){ if (btn) btn.classList.remove('spin'); return r; };
-    return (t.src ? nbShareRefresh(t.id) : nbPull({ loud: true })).then(done, done);
+    var run = function(p){
+      if (btn) btn.classList.add('spin');
+      var done = function(r){ if (btn) btn.classList.remove('spin'); return r; };
+      return p().then(done, done);
+    };
+    // a note saved from a share link has two sources: the link its author keeps updating, and this notebook's repository
+    if (t.nb && t.src){
+      var r = btn && !btn.hidden && btn.getClientRects().length ? btn.getBoundingClientRect() : { right: innerWidth / 2 + 140, bottom: 110 };
+      nbMenu(r.right, r.bottom + 4, [
+        { label: 'از لینک اشتراک (در یادداشت می‌نشیند و به گیت هم می‌رود)', act: function(){ run(function(){ return nbShareRefresh(t.id); }); } },
+        { label: 'از مخزن گیت', act: function(){ run(function(){ return nbPull({ loud: true }); }); } },
+        null,
+        { label: 'جدا کردن از لینک (از این به بعد فقط از مخزن)', act: function(){
+          delete t.src; delete t.srcSum;
+          saveState(); drawTabs();
+          toast('یادداشت دیگر لینک را دنبال نمی‌کند', 'check');
+        } }
+      ]);
+      return Promise.resolve(true);
+    }
+    return run(function(){ return t.src ? nbShareRefresh(t.id) : nbPull({ loud: true }); });
   }
+  /** The share link a tab was opened from (kept on the tab: refresh and F5 read it again). */
+  function nbCopyShareLink(tabId){
+    var t = tabs.filter(function(x){ return x.id === (tabId || activeTab); })[0];
+    if (!t || !t.src){ toast('این تب از لینک اشتراک باز نشده', 'x'); return; }
+    copyToClipboard('', SHARE_BASE + '#' + t.src).then(function(ok){ toast(ok ? 'لینک اشتراک کپی شد' : 'کپی نشد', ok ? 'link' : 'x'); });
+  }
+  window.nbCopyShareLink = nbCopyShareLink;
   ACTIONS['refresh-note'] = { label: 'تازه کردن همین یادداشت (از مخزن یا لینک اشتراک)', icon: 'redo', kbd: 'F5', kw: 'refresh reload note share update تازه کردن بروز', run: function(){ nbRefreshCurrent(); } };
   // F5 on a note or a shared text brings its newest version; elsewhere (and Ctrl/Shift+F5) the page reloads as usual
   document.addEventListener('keydown', function(e){
@@ -15537,6 +15564,7 @@ function nbCommitMessage(list){
           { label: 'ارائه (اسلاید)', act: act('present') },
           { label: 'تبدیل فرمت…', act: act('convert') },
           { label: 'بررسی نسخهٔ تازهٔ این متن اشتراکی', hide: !(currentTab() && currentTab().src), act: function(){ nbShareRefresh(); } },
+          { label: 'کپی لینک اشتراک', hide: !(currentTab() && currentTab().src), act: function(){ nbCopyShareLink(); } },
           { label: 'نمایش به‌صورت: ' + (FMT_LABELS[renderedFmt] || renderedFmt) + (state.fmt === 'auto' ? ' (خودکار)' : '') + '…', hide: !nbFmtShowable(), act: function(){
             var r = more.getBoundingClientRect();
             setTimeout(function(){ nbFmtMenuAt(r.right, r.bottom + 4); }, 0);
@@ -16858,6 +16886,20 @@ function nbCommitMessage(list){
             if (nbSrcText(got2.text) === now){ mine.srcSum = nbHash16(now); toast('تازه‌ترین نسخه همین است که باز است', 'check'); return true; }
             return apply({ title: d.title, text: got2.text });
           }, function(){ mine.srcSum = nbHash16(now); toast('تازه‌ترین نسخه همین است که باز است', 'check'); return true; });
+        }
+        if (mine.nb && was !== now){
+          if (nbReadOnly(mine.nb)){ toast('این یادداشت فقط خواندنی است', 'lock'); return false; }
+          var putIntoNote = function(){
+            replaceText(d.text, 'نسخهٔ تازهٔ لینک در یادداشت نشست — با همگام‌سازی به گیت هم می‌رود');
+            mine.srcSum = nbHash16(now);
+            nbSyncActiveNote(); nbSay();
+            if (C.auto) nbScheduleCommit();
+            saveState();
+          };
+          if (mine.srcSum && nbHash16(was) !== mine.srcSum){
+            nbConfirm('یادداشت تغییر کرده', 'این یادداشت را بعد از آخرین گرفتن از لینک ویرایش کرده‌ای. با نسخهٔ تازهٔ لینک جایگزین شود؟ نسخهٔ فعلی در تاریخچهٔ گیت می‌ماند و «بازگشت» هم دارد.', putIntoNote);
+          } else putIntoNote();
+          return true;
         }
         if (was === now){ mine.srcSum = nbHash16(now); toast('تازه‌ترین نسخه همین است که باز است', 'check'); }
         else if (mine.srcSum && nbHash16(was) !== mine.srcSum){
