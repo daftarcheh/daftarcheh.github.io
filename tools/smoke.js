@@ -1346,6 +1346,18 @@ win.addEventListener('error', (e) => { bootError = e.message; });
     ok('جدا کردن از لینک: از این به بعد F5 مستقیم از مخزن، بی منو', doc.getElementById('nbMenu').hidden !== false || ![...doc.querySelectorAll('#nbMenu button')].some((b) => /از لینک اشتراک/.test(b.textContent)));
     await until(() => !nbu.state().busy, 4000);
   }
+  { // Settings › Shares: the token comes first, with its own connection test (a gist made and deleted)
+    for (let i = 0; i < 4 && nbu.closeTopLayer(); i++) await sleep(10);
+    doc.body.dispatchEvent(new win.KeyboardEvent('keydown', { code: 'KeyG', key: 'G', altKey: true, shiftKey: true, bubbles: true, cancelable: true }));
+    await sleep(60);
+    const tokField = doc.getElementById('nbGistToken'), list = doc.getElementById('nbShareList');
+    ok('توکن اشتراک بالای فهرست اشتراک‌هاست', !!tokField && !!list && (tokField.compareDocumentPosition(list) & win.Node.DOCUMENT_POSITION_FOLLOWING));
+    const before = gistsMeta.size;
+    doc.querySelector('[data-nb-cfg="gisttest"]').click();
+    await until(() => /اوکی|nb-warn/.test(doc.getElementById('nbGistTestOut').innerHTML), 3000);
+    ok('آزمایش اتصال اشتراک: گیست ساخت و پاک کرد، و گفت اوکی', /اوکی/.test(doc.getElementById('nbGistTestOut').textContent) && gistsMeta.size === before, [doc.getElementById('nbGistTestOut').textContent, gistsMeta.size - before]);
+    for (let i = 0; i < 4 && nbu.closeTopLayer(); i++) await sleep(10);
+  }
   console.log(`\n${fail === 0 ? 'ALL GOOD' : 'FAILURES'}: ${pass} passed, ${fail} failed`);
   win.close();
   process.exit(fail === 0 ? 0 : 1);

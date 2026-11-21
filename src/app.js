@@ -12412,6 +12412,7 @@ function nbCommitMessage(list){
       if (what === 'usebranch'){ C.branch = btn.dataset.branch; NB.lastCommit = ''; nbSaveCfg(); nbDrawSettings(); toast('شاخه: ' + C.branch, 'check'); if (C.token) nbPull({ loud: true }); return; }
       if (what === 'hardrefresh'){ nbHardRefresh(); return; }
       if (what === 'forget'){ NB.pass = ''; nbDrawSettings(); toast('گذرواژهٔ یادداشت های رمزدار از حافظه پاک شد', 'lock'); return; }
+      if (what === 'gisttest'){ nbGistTest(); return; }
       if (what === 'test'){
         nbSettingsApply();
         $('nbTestOut').textContent = 'در حال آزمایش…';
@@ -16601,13 +16602,37 @@ function nbCommitMessage(list){
     }, function(e){ toast((e && e.message) || 'فهرست اشتراک‌ها خوانده نشد', 'x'); return 0; });
   }
   function nbSharesSectionHtml(){
-    return '<div class="nb-actions nb-share-all"><button type="button" class="btn-soft sm" data-nb-share-all>' + icon('trash') + 'برداشتن همهٔ اشتراک‌ها…</button></div>'
-      + '<div id="nbShareList"><p class="nb-mini-text">در حال خواندن…</p></div>'
-      + nbSw('nbShareAuto', C.shareAuto !== false, 'به‌روز کردن خودکار اشتراک‌ها', 'با هر ارسال یادداشت به مخزن، اشتراک‌های «باز» و «کلید در لینک» همان یادداشت هم به‌روز می‌شوند — لینک همان می‌ماند. رمزدار نه؛ گذرواژه جایی نگه داشته نمی‌شود.')
-      + '<h5>توکن برای اشتراک</h5>'
+    // the token first: without it there is nothing below to list or make
+    return '<h5>توکن برای اشتراک</h5>'
       + '<div class="nb-field"><label>توکن گیت هاب با دسترسی Gists (اختیاری)</label><input class="nb-input" id="nbGistToken" dir="ltr" type="password" autocomplete="off" placeholder="'
       + ((C.provider || 'github') === 'github' ? 'خالی = همان توکن مخزن' : 'github_pat_…') + '" value="' + escapeHtml(C.gistToken || '') + '">'
-      + '<small class="nb-mini-text">در <a href="' + escapeHtml(nbGithubTokenUrl('gist')) + '" data-nb-toklink="gist" target="_blank" rel="noopener">گیت هاب</a> (فرم از قبل پر است)، Account permissions › Gists › Read and write.</small></div>';
+      + '<small class="nb-mini-text">در <a href="' + escapeHtml(nbGithubTokenUrl('gist')) + '" data-nb-toklink="gist" target="_blank" rel="noopener">گیت هاب</a> (فرم از قبل پر است)، Account permissions › Gists › Read and write.</small></div>'
+      + '<div class="nb-actions"><button class="btn-primary sm" type="button" data-nb-cfg="gisttest">آزمایش اتصال</button></div>'
+      + '<p class="nb-hint" id="nbGistTestOut"></p>'
+      + nbSw('nbShareAuto', C.shareAuto !== false, 'به‌روز کردن خودکار اشتراک‌ها', 'با هر ارسال یادداشت به مخزن، اشتراک‌های «باز» و «کلید در لینک» همان یادداشت هم به‌روز می‌شوند — لینک همان می‌ماند. رمزدار نه؛ گذرواژه جایی نگه داشته نمی‌شود.')
+      + '<h5>اشتراک‌ها</h5>'
+      + '<div class="nb-actions nb-share-all"><button type="button" class="btn-soft sm" data-nb-share-all>' + icon('trash') + 'برداشتن همهٔ اشتراک‌ها…</button></div>'
+      + '<div id="nbShareList"><p class="nb-mini-text">در حال خواندن…</p></div>';
+  }
+  /** «آزمایش اتصال» for sharing: a tiny secret gist is made and deleted at once — the only sure test of «Gists: write». */
+  function nbGistTest(){
+    nbSettingsApply();
+    var out = $('nbGistTestOut');
+    if (!out) return Promise.resolve(false);
+    if (!nbShareToken()){ out.innerHTML = '<span class="nb-warn">توکنی نیست — توکن گیست را بالا بگذار' + ((C.provider || 'github') === 'github' ? '، یا توکن مخزن را در «اتصال»' : '') + '.</span>'; return Promise.resolve(false); }
+    out.textContent = 'در حال آزمایش…';
+    var which = C.gistToken ? 'توکن اشتراک' : 'توکن مخزن';
+    return nbGistApi('POST', '/gists', { description: 'daftarcheh token test', public: false, files: { 'daftarcheh-token-test.txt': { content: 'test' } } })
+      .then(function(g){
+        return nbGistApi('DELETE', '/gists/' + g.id).then(function(){ return g; }, function(){ return g; });
+      })
+      .then(function(g){
+        out.innerHTML = 'اوکی — ' + which + ' می‌تواند گیست بسازد و پاک کند' + (g && g.owner && g.owner.login ? ' (حساب <b dir="ltr">' + escapeHtml(g.owner.login) + '</b>)' : '') + '.';
+        return true;
+      }, function(e){
+        out.innerHTML = '<span class="nb-warn">' + escapeHtml(which + ': ' + ((e && e.message) || 'خطا')) + '</span>';
+        return false;
+      });
   }
   /** Plain text behind a share: the open note when it is still here, otherwise the gist itself. */
   function nbSharePlain(rec, pass){
