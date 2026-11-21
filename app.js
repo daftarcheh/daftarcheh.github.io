@@ -646,6 +646,7 @@ var APP_CSS = [
   '.tab-new{flex:none;width:32px;height:32px;border-radius:10px;border:1px dashed var(--border-strong);background:transparent;color:var(--muted);cursor:pointer;display:inline-grid;place-items:center;}',
   '.tab-new:hover{color:var(--accent);border-color:var(--accent);}',
   '.tab-new .i{width:16px;height:16px;}',
+  '#btnRefreshNote.spin .i{animation:updspin .8s linear infinite;}',
   '.tab-home{border-style:solid;border-color:var(--border);}',
   '.tab-home[aria-pressed="true"]{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 55%,transparent);background:color-mix(in srgb,var(--accent) 12%,transparent);}',
   '.tab-all{width:auto;padding:0 8px;gap:2px;display:inline-flex;align-items:center;font-size:.72rem;font-weight:800;border-style:solid;}',
@@ -5935,6 +5936,7 @@ if (typeof document !== 'undefined'){
     $('tabCount').textContent = faNum(tabs.length);
     if ($('popTabs').classList.contains('open')) keepPopOnScreen($('popTabs'));
     var home = $('tabHome'), cur = currentTab();
+    if ($('btnRefreshNote')) $('btnRefreshNote').hidden = !(cur && (cur.nb || cur.src));
     if (home){
       home.hidden = !(typeof window.nbHasHome === 'function' && window.nbHasHome());
       home.setAttribute('aria-pressed', String(!!cur && !cur.nb && !ta.value.trim()));
@@ -12711,6 +12713,24 @@ function nbCommitMessage(list){
     if (made.exists) toast('یادداشت امروز از قبل بود', 'x');
   } };
   ACTIONS['nb-push'] = { label: 'ارسال تغییرهای دفترچه به گیت هاب', icon: 'cloud', kw: 'notebook commit push sync git', run: function(){ nbSyncActiveNote(); nbPush({ loud: true }); } };
+  /** «تازه کردن همین یادداشت»: a text opened from a share link reads its link again; a notebook note takes the
+      repository's newest commit (the open note follows unless it has unsent edits, which the usual merge handles). */
+  function nbRefreshCurrent(){
+    var t = currentTab(), btn = $('btnRefreshNote');
+    if (!t || !(t.nb || t.src)){ toast('این تب نه یادداشت دفترچه است نه متنِ لینک اشتراک', 'x'); return Promise.resolve(false); }
+    if (btn) btn.classList.add('spin');
+    var done = function(r){ if (btn) btn.classList.remove('spin'); return r; };
+    return (t.src ? nbShareRefresh(t.id) : nbPull({ loud: true })).then(done, done);
+  }
+  ACTIONS['refresh-note'] = { label: 'تازه کردن همین یادداشت (از مخزن یا لینک اشتراک)', icon: 'redo', kbd: 'F5', kw: 'refresh reload note share update تازه کردن بروز', run: function(){ nbRefreshCurrent(); } };
+  // F5 on a note or a shared text brings its newest version; elsewhere (and Ctrl/Shift+F5) the page reloads as usual
+  document.addEventListener('keydown', function(e){
+    if (e.key !== 'F5' || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || nbLayerOpen()) return;
+    var t = currentTab();
+    if (!t || !(t.nb || t.src)) return;
+    e.preventDefault();
+    nbRefreshCurrent();
+  }, true);
   ACTIONS['nb-pull'] = { label: 'گرفتن تغییرهای تازه از گیت هاب', icon: 'redo', kw: 'notebook pull fetch sync git', run: function(){ nbPull({ loud: true }); } };
   ACTIONS['nb-save-tab'] = { label: 'ذخیرهٔ تب فعلی در دفترچه', icon: 'cloud', kw: 'notebook save tab temp', run: function(){ nbSaveTabDialog(activeTab); } };
   ACTIONS['nb-zip'] = { label: 'دانلود دفترچه به صورت zip', icon: 'download', kw: 'notebook zip export backup', run: function(){ nbDownloadZip(''); } };
@@ -16843,7 +16863,7 @@ function nbCommitMessage(list){
       } else {
         receiveText(d.text, 'markdown', 'متن اشتراکی باز شد' + (d.title ? ': ' + d.title : ''));
         var t = currentTab();
-        if (t && !t.nb){ t.src = src; t.srcSum = nbHash16(now); }
+        if (t && !t.nb){ t.src = src; t.srcSum = nbHash16(now); drawTabs(); }
       }
       // my own key link opened in full on this device: its key is learnt, so «بروزرسانی» works here too
       if (key) nbShareLoadReg().then(function(){

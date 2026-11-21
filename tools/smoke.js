@@ -1275,6 +1275,30 @@ win.addEventListener('error', (e) => { bootError = e.message; });
     win.getSelection().removeAllRanges();
     if (origWrite) win.navigator.clipboard.writeText = origWrite;
   }
+  { // «تازه کردن همین یادداشت»: the button shows on a note or a shared text, F5 brings the newest version of either
+    for (let i = 0; i < 4 && nbu.closeTopLayer(); i++) await sleep(10);
+    const btnR = doc.getElementById('btnRefreshNote');
+    pasteText('یک متن موقت بی ربط ' + Date.now()); await sleep(40);
+    ok('دکمهٔ تازه کردن روی تب موقت معمولی نیست', btnR.hidden);
+    const live = await nbu.shareCreate({ title: 'زنده', text: '# زنده\nنسخهٔ یک\n', path: '' }, 'key', '', 0);
+    await sleep(800);
+    await nbu.readGist('#g=me/' + live.id + '.' + live.key); await sleep(60);
+    ok('روی متنِ لینک اشتراک دکمه هست', !btnR.hidden && /نسخهٔ یک/.test(doc.getElementById('input').value));
+    const enc = await nbu.encryptText(JSON.stringify({ t: 'زنده', x: '# زنده\nنسخهٔ دو\n' }), live.key);
+    rawGists.set(live.id, enc);
+    doc.body.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'F5', bubbles: true, cancelable: true }));
+    await sleep(150);
+    ok('F5 روی متنِ لینک: نسخهٔ تازه همان‌جا آمد', /نسخهٔ دو/.test(doc.getElementById('input').value), doc.getElementById('input').value.slice(0, 40));
+    nbu.write('تازه/یادداشت.md', '# تازه\nنسخهٔ یک\n');
+    await nbu.push({ loud: false });
+    nbu.open('تازه/یادداشت.md'); await sleep(40);
+    ok('روی یادداشت دفترچه دکمه هست', !btnR.hidden);
+    putRemote('تازه/یادداشت.md', '# تازه\nنسخهٔ دو از دستگاه دیگر\n');
+    bumpRemote('edited elsewhere');
+    btnR.click();
+    await until(() => /نسخهٔ دو از دستگاه دیگر/.test(doc.getElementById('input').value), 6000);
+    ok('دکمهٔ تازه کردن روی یادداشت: آخرین نسخهٔ مخزن آمد', /نسخهٔ دو از دستگاه دیگر/.test(doc.getElementById('input').value), doc.getElementById('input').value.slice(0, 50));
+  }
   console.log(`\n${fail === 0 ? 'ALL GOOD' : 'FAILURES'}: ${pass} passed, ${fail} failed`);
   win.close();
   process.exit(fail === 0 ? 0 : 1);
